@@ -1,0 +1,92 @@
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim totalCost As Double
+    Dim i As Long
+    Dim textCount As Long
+    
+    ' Set the worksheet
+    Set ws = ThisWorkbook.Sheets("Sheet2")
+    
+    ' Find the last row with data
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    ' Exit if no data is present
+    If lastRow < 2 Then Exit Sub
+    
+    ' Check if the change is in relevant columns (A, B, C, or D)
+    If Not Intersect(Target, ws.Range("A:D")) Is Nothing Then
+        Application.EnableEvents = False ' Prevent recursive triggers
+        Application.ScreenUpdating = False ' Speed up execution
+        
+        ' Calculate Total Price (Column E)
+        For i = 2 To lastRow
+            ws.Cells(i, 5).Value = ws.Cells(i, 3).Value * ws.Cells(i, 4).Value
+        Next i
+        
+        ' Recalculate Total Cost
+        totalCost = Application.WorksheetFunction.Sum(ws.Range("E2:E" & lastRow))
+        
+        ' Prevent division by zero
+        If totalCost = 0 Then
+            Application.EnableEvents = True
+            Application.ScreenUpdating = True
+            Exit Sub
+        End If
+        
+        ' Sort by Total Price (Descending Order)
+        ws.Range("A1:H" & lastRow).Sort Key1:=ws.Range("E2"), Order1:=xlDescending, Header:=xlYes
+        
+        ' Calculate % of Values and Cumulative Values
+        Dim cumulativeValue As Double
+        cumulativeValue = 0
+        
+        For i = 2 To lastRow
+            ws.Cells(i, 6).Value = ws.Cells(i, 5).Value / totalCost ' % of Values
+            cumulativeValue = cumulativeValue + ws.Cells(i, 6).Value
+            ws.Cells(i, 7).Value = cumulativeValue ' Cumulative Values
+            
+            ' Assign ABC Classification
+            If ws.Cells(i, 7).Value <= 0.8 Then
+                ws.Cells(i, 8).Value = "A"
+            ElseIf ws.Cells(i, 7).Value <= 0.95 Then
+                ws.Cells(i, 8).Value = "B"
+            Else
+                ws.Cells(i, 8).Value = "C"
+            End If
+        Next i
+        
+        ' Apply percentage formatting to Columns F and G
+        ws.Range("F2:F" & lastRow).NumberFormat = "0.00%"
+        ws.Range("G2:G" & lastRow).NumberFormat = "0.00%"
+        
+        ' Count the number of text values in A2:A300
+        textCount = Application.WorksheetFunction.CountIf(ws.Range("A2:A300"), "*")
+        
+        ' Display the result in cell M3
+        ws.Range("M3").Value = textCount
+        
+        Application.ScreenUpdating = True ' Re-enable screen updating
+        Application.EnableEvents = True ' Re-enable events
+    End If
+End Sub
+
+Sub ClearData()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("Sheet2")
+    
+    ' Find the last row with data
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    ' Ensure headers remain intact by clearing only data rows
+    If lastRow > 1 Then
+        ws.Range("A2:H" & lastRow).ClearContents
+    End If
+    
+    ' Clear the value in cell M3
+    ws.Range("M3").Value = 0 ' Or "" if you prefer an empty cell
+    
+    MsgBox "Data cleared successfully!", vbInformation, "Clear Data"
+End Sub
+
